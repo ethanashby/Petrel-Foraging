@@ -68,3 +68,129 @@ fatal: remote origin already exists.
 error: src refspec master does not match any.
 [31merror: failed to push some refs to 'https://github.com/ethanashby/Petrel-Foraging.git'
 [m]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git add .
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git add .push -u origin master
+error: src refspec master does not match any.
+[31merror: failed to push some refs to 'https://github.com/ethanashby/Petrel-Foraging.git'
+[m]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git commit -m "initial commit"
+[master (root-commit) 14e7a88] initial commit
+ 6 files changed, 150 insertions(+)
+ create mode 100644 .Rproj.user/37962E62/console06/20733164
+ create mode 100644 .Rproj.user/37962E62/console06/20733164.env
+ create mode 100644 .Rproj.user/37962E62/console06/INDEX001
+ create mode 100644 .Rproj.user/37962E62/sources/s-AECCEFF0/lock_file
+ create mode 100644 .Rproj.user/shared/notebooks/patch-chunk-names
+ create mode 100644 Petrel.Rproj
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git push -u origin master
+Enumerating objects: 14, done.
+Counting objects:   7% (1/14)   Counting objects:  14% (2/14)   Counting objects:  21% (3/14)   Counting objects:  28% (4/14)   Counting objects:  35% (5/14)   Counting objects:  42% (6/14)   Counting objects:  50% (7/14)   Counting objects:  57% (8/14)   Counting objects:  64% (9/14)   Counting objects:  71% (10/14)   Counting objects:  78% (11/14)   Counting objects:  85% (12/14)   Counting objects:  92% (13/14)   Counting objects: 100% (14/14)   Counting objects: 100% (14/14), done.
+Delta compression using up to 8 threads
+Compressing objects:  11% (1/9)   Compressing objects:  22% (2/9)   Compressing objects:  33% (3/9)   Compressing objects:  44% (4/9)   Compressing objects:  55% (5/9)   Compressing objects:  66% (6/9)   Compressing objects:  77% (7/9)   Compressing objects:  88% (8/9)   Compressing objects: 100% (9/9)   Compressing objects: 100% (9/9), done.
+Writing objects:   7% (1/14)   Writing objects:  14% (2/14)   Writing objects:  21% (3/14)   Writing objects:  28% (4/14)   Writing objects:  35% (5/14)   Writing objects:  42% (6/14)   Writing objects:  50% (7/14)   Writing objects:  57% (8/14)   Writing objects:  64% (9/14)   Writing objects:  71% (10/14)   Writing objects:  78% (11/14)   Writing objects:  85% (12/14)   Writing objects:  92% (13/14)   Writing objects: 100% (14/14)   Writing objects: 100% (14/14), 3.73 KiB | 317.00 KiB/s, done.
+Total 14 (delta 0), reused 0 (delta 0)
+To https://github.com/ethanashby/Petrel-Foraging.git
+ * [new branch]      master -> master
+Branch 'master' set up to track remote branch 'master' from 'origin'.
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git push -u origin mastercommit -m "initial commit"
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+	[31mmodified:   .Rproj.user/37962E62/console06/20733164[m
+
+Untracked files:
+	[31m2012_icebergs.png[m
+	[31m2013_icebergs.png[m
+	[31m2014_icebergs.png[m
+	[31m3D.png[m
+	[31mAll_Petrel_Flights_Annotated.csv[m
+	[31mAntarctic petrel 3D flights, Svarthamaren, Antarctica (data from Tarroux et al. 2016).csv[m
+	[31mAntarctic petrel 3D flights, Svarthamaren, Antarctica (data from Tarroux et al. 2016).csv-9160034165584638874.csv[m
+	[31mAt-Sea Distribution and Prey Selection of Antarctic Petrels and Commercial Krill Fisheries.PDF[m
+	[31mAt-sea distribution Antarctic Petrel, Antarctica 2012.csv[m
+	[31mAvian Ecology Petrel Project.Rproj[m
+	[31mBathymetry_plot.png[m
+	[31mClusters.png[m
+	[31mContour_plots.png[m
+	[31mDecorative Plot.png[m
+	[31mDistribution and Abundance of the Antarctic Petrel.pdf[m
+	[31mEnv Vbl Plots 1.png[m
+	[31mFinal project.Rmd[m
+	[31mLarge-scale oceanographic fluctuations dirve Antarctic petrel survival and reproduction.pdf[m
+	[31mNPP Plots_my month.png[m
+	[31mNPP_SeaIce_Medoids.png[m
+	[31mNPP_plot.png[m
+	[31mOcean Producivity Procellariformes.pdf[m
+	[31mPelagic Distribution and numbers of the Antarctic petrel in the Weddell Sea during spring.pdf[m
+	[31mPetrel 1987/[m
+	[31mPetrel 2-4026531782110482438/[m
+	[31mPetrel 4165869/[m
+	[31mPetrel Data 4182008GPS-242334938839160224/[m
+	[31mPetrel.jpg[m
+	[31mPetrel_medoids/[m
+	[31mPrototype paths.png[m
+	[31mPrototypes_plot.png[m
+	[31mSea_Ice_plot.png[m
+	[31mSea_Surface_Temp_plot.png[m
+	[31mTotal paths.png[m
+	[31mantarctic petrel 2.jpg[m
+	[31mantarctic_petrel_pjd_9484.jpg[m
+	[31mfor.annotation.txt[m
+	[31miceberg_stats/[m
+	[31mmoveVis.gif[m
+	[31mrsos.191429.pdf[m
+
+no changes added to commit
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git commit -m "initial commit"[K[K[K[K[K[K[K[K[K[K[K[K[K[K[Knew commit"
+On branch master
+Your branch is up to date with 'origin/master'.
+
+Changes not staged for commit:
+	[31mmodified:   .Rproj.user/37962E62/console06/20733164[m
+
+Untracked files:
+	[31m2012_icebergs.png[m
+	[31m2013_icebergs.png[m
+	[31m2014_icebergs.png[m
+	[31m3D.png[m
+	[31mAll_Petrel_Flights_Annotated.csv[m
+	[31mAntarctic petrel 3D flights, Svarthamaren, Antarctica (data from Tarroux et al. 2016).csv[m
+	[31mAntarctic petrel 3D flights, Svarthamaren, Antarctica (data from Tarroux et al. 2016).csv-9160034165584638874.csv[m
+	[31mAt-Sea Distribution and Prey Selection of Antarctic Petrels and Commercial Krill Fisheries.PDF[m
+	[31mAt-sea distribution Antarctic Petrel, Antarctica 2012.csv[m
+	[31mAvian Ecology Petrel Project.Rproj[m
+	[31mBathymetry_plot.png[m
+	[31mClusters.png[m
+	[31mContour_plots.png[m
+	[31mDecorative Plot.png[m
+	[31mDistribution and Abundance of the Antarctic Petrel.pdf[m
+	[31mEnv Vbl Plots 1.png[m
+	[31mFinal project.Rmd[m
+	[31mLarge-scale oceanographic fluctuations dirve Antarctic petrel survival and reproduction.pdf[m
+	[31mNPP Plots_my month.png[m
+	[31mNPP_SeaIce_Medoids.png[m
+	[31mNPP_plot.png[m
+	[31mOcean Producivity Procellariformes.pdf[m
+	[31mPelagic Distribution and numbers of the Antarctic petrel in the Weddell Sea during spring.pdf[m
+	[31mPetrel 1987/[m
+	[31mPetrel 2-4026531782110482438/[m
+	[31mPetrel 4165869/[m
+	[31mPetrel Data 4182008GPS-242334938839160224/[m
+	[31mPetrel.jpg[m
+	[31mPetrel_medoids/[m
+	[31mPrototype paths.png[m
+	[31mPrototypes_plot.png[m
+	[31mSea_Ice_plot.png[m
+	[31mSea_Surface_Temp_plot.png[m
+	[31mTotal paths.png[m
+	[31mantarctic petrel 2.jpg[m
+	[31mantarctic_petrel_pjd_9484.jpg[m
+	[31mfor.annotation.txt[m
+	[31miceberg_stats/[m
+	[31mmoveVis.gif[m
+	[31mrsos.191429.pdf[m
+
+no changes added to commit
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git commit -m "new commit"[4@initial[C[C[C[C[C[C[C[C[5Ppush -u origin master
+Branch 'master' set up to track remote branch 'master' from 'origin'.
+Everything up-to-date
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git push -u origin mastercommit -m "new commit"git add .[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[K[Kgit add .

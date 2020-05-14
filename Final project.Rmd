@@ -1,0 +1,562 @@
+---
+title: "Final Project"
+author: "Ethan Ashby"
+date: "4/18/2020"
+output: pdf_document
+---
+
+```{r}
+library(tidyverse)
+library(ggmap)
+library(ggplot2)
+library(RCurl)
+ggmap::register_google(key = "AIzaSyAqgZ-veO5GBskQjDvTQX70ow2Xb5qPnhM")
+
+
+petrel<-read.csv("At-sea distribution Antarctic Petrel, Antarctica 2012 (data from Descamps et al. 2016).csv", header=TRUE)
+
+
+p<-ggmap(get_googlemap(center = c(lon = mean(petrel$location.long, na.rm=TRUE), lat = mean(petrel$location.lat, na.rm=TRUE)),
+                    zoom = 3, scale = 1,
+                    maptype ='satellite',
+                    color = "color"))
+
+#######
+#All birds plot
+#######
+
+p+geom_path(aes(x=location.long, y=location.lat, color=as.factor(individual.local.identifier)), data=petrel[petrel$sensor.type=="gps",], size=1)+theme(legend.position = "none")
+
+########
+#Contour plot
+########
+p+geom_density2d(aes(x=location.long, y=location.lat), data=petrel[petrel$sensor.type=="gps",], binwidth=0.001, color="red")
+
+
+#Bathymetry, weather MODIS Ocean cover
+petrel_a<-read.csv("./Petrel 2-4026531782110482438/Petrel 2-4026531782110482438.csv", header=TRUE)
+View(petrel_a)
+
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_a$ETOPO1.Elevation), data=petrel_a, size=2)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")
+
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_a$OSCAR.1.3deg.5d.Surface.Currents.Zonal.Velocity), data=petrel_a, size=2)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")
+
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_a$OSCAR.1.3deg.5d.Surface.Currents.Meridional.Velocity), data=petrel_a, size=2)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")
+```
+
+```{r Date plot}
+###########
+#CHANGE FOR EACH BREEDING SEASON
+###########
+
+petrel_arrange<-petrel %>% filter(sensor.type=="gps")
+starts<-petrel_arrange[match(unique(petrel_arrange$tag.local.identifier), petrel_arrange$tag.local.identifier),]
+
+dates<-format(as.Date(starts$timestamp), "%Y-%m")
+starts$dates<-dates
+years<-format(as.Date(starts$timestamp), "%Y")
+starts$years<-years
+starts$winter<-as.numeric(years)
+starts$winter<-ifelse(grepl("-12", starts$dates), starts$winter+1, starts$winter)
+starts$winter<-ifelse(grepl("-11", starts$dates), starts$winter+1, starts$winter)
+starts$winter<-factor(starts$winter)
+starts$month<-format(as.Date(starts$timestamp), "%m")
+
+date_df<-left_join(petrel_arrange, starts, by="tag.local.identifier")
+date_df<-date_df[,c(1:15, 30:33)]
+
+p+geom_path(aes(x=location.long.x, y=location.lat.x, color=as.factor(individual.local.identifier.x)), data=date_df, size=0.5, alpha=0.5)+theme(legend.position = "none")+facet_wrap(~winter)
+
+p+geom_density2d(aes(x=location.long.x, y=location.lat.x, color=dates), data=date_df, binwidth=0.001, alpha=0.8)+scale_color_manual(values=c("red", "magenta", "orange", "yellow", "green", "darkgreen", "cyan", "purple"))+facet_wrap(~winter)
+
+
+#Distance
+library(geosphere)
+library(stats)
+
+distances<-matrix(ncol=length(unique(petrel_arrange$tag.local.identifier)), nrow=2000)
+
+for (i in 1:length(unique(petrel_arrange$tag.local.identifier))){
+  id<-unique(petrel_arrange$tag.local.identifier)[i]
+  tmp<-petrel_arrange %>% filter(tag.local.identifier==id)
+  for (j in 1:dim(tmp)[1]){
+  distances[j,i]<-distm(c(tmp$location.long[j], tmp$location.lat[j]), c(tmp$location.long[j+1], tmp$location.lat[j+1]), fun = distGeo)
+}}
+
+colnames(distances)<-unique(petrel_arrange$tag.local.identifier)
+total_distances<-distances %>% colSums(na.rm=TRUE) %>% as.data.frame()
+total_distances$tag.local.identifier<-rownames(total_distances)
+colnames(total_distances)<-c("total_d", "tag.local.identifier")
+
+new_df<-left_join(date_df, total_distances, by="tag.local.identifier")
+
+#Welch's ANOVA for unequal variances
+oneway.test(total_d ~ as.factor(winter),
+            data=new_df %>% dplyr::select(total_d, winter) %>% unique(),
+            var.equal=FALSE)
+
+oneway.test(total_d ~ as.factor(month),
+            data=new_df %>% dplyr::select(total_d, month) %>% unique(),
+            var.equal=FALSE)
+```
+
+```{r Cluster time, warning=FALSE, message=FALSE}
+library(cluster)
+library(fpc)
+library(factoextra)
+library(scales)
+
+clust_petrel<- new_df %>% filter(sensor.type.x=="gps") %>% dplyr::select(location.long.x, location.lat.x, individual.local.identifier.x, winter, month) %>% group_by(individual.local.identifier.x) %>% summarize(medlon=median(location.long.x), medlat=median(location.lat.x), winter=unique(winter), month=unique(month))
+
+clust_petrel<-as.data.frame(clust_petrel)
+rownames(clust_petrel)<-clust_petrel$individual.local.identifier.x
+petrel_2012<-clust_petrel %>% filter(winter==2012)
+rownames(petrel_2012)<-petrel_2012$individual.local.identifier
+petrel_2012<-petrel_2012[,2:3]
+petrel_2013<-clust_petrel %>% filter(winter==2013)
+rownames(petrel_2013)<-petrel_2013$individual.local.identifier
+petrel_2013<-petrel_2013[,2:3]
+petrel_2014<-clust_petrel %>% filter(winter==2014)
+rownames(petrel_2014)<-petrel_2014$individual.local.identifier
+petrel_2014<-petrel_2014[,2:3]
+
+clusters_2012=fpc::pamk(petrel_2012, krange=2:3, criterion="asw", usepam=TRUE)
+clusters_2013=fpc::pamk(petrel_2013, krange=2:12, criterion="asw", usepam=TRUE)
+clusters_2014=fpc::pamk(petrel_2014, krange=2:12, criterion="asw", usepam=TRUE)
+
+medoid_birds<-c(rownames(clusters_2012$pamobject$medoids), rownames(clusters_2013$pamobject$medoids), rownames(clusters_2014$pamobject$medoids))
+
+medoids<-new_df[new_df$individual.local.identifier.x %in% medoid_birds,]
+
+p+geom_path(aes(y=location.lat.x, x=location.long.x, color=tag.local.identifier), data=medoids)+labs(color = "Cluster")+facet_wrap(~winter)
+
+###########
+#Now w/ Env-Data
+###########
+
+petrel_5869<-read.csv("./Petrel_medoids/4165869 Petrel/4165869 Petrel-3018022957964660840.csv", header=TRUE)
+petrel_5875<-read.csv("./Petrel_medoids/4165875 Petrel/4165875 Petrel-1926703604197663390.csv", header=TRUE)
+petrel_1880<-read.csv("./Petrel_medoids/4181880 Petrel/4181880 Petrel-2940697888382955880.csv", header=TRUE)
+petrel_1992<-read.csv("./Petrel_medoids/4181992 Petrel/4181992 Petrel-7595035722569887512.csv", header=TRUE)
+petrel_1995<-read.csv("./Petrel_medoids/4181995 Petrel/4181995 Petrel-7937599206014468411.csv", header=TRUE)
+petrel_2001<-read.csv("./Petrel_medoids/4182001 Petrel/4182001 Petrel-3222922419393246730.csv", header=TRUE)
+petrel_2006<-read.csv("./Petrel_medoids/4182006 Petrel/4182006 Petrel-8350354364790764198.csv", header=TRUE)
+petrel_2127<-read.csv("./Petrel_medoids/4182127 Petrel/4182127 Petrel-4972117961591538296.csv", header=TRUE)
+
+medoid_df<-rbind(petrel_2127, petrel_2001, petrel_2006, petrel_1995, petrel_1880, petrel_1992, petrel_5869, petrel_5875)
+medoid_df<-full_join(medoid_df, medoids, by=c("event.id"="event.id.x"))
+
+##########
+#Medoid plot
+##########
+
+medoid_df$clusters<-NA
+medoid_df$clusters[grep("4182127", medoid_df$individual.local.identifier)]<-"Cluster 1 2012"
+medoid_df$clusters[grep("4182001", medoid_df$individual.local.identifier)]<-"Cluster 2 2012"
+medoid_df$clusters[grep("4182006", medoid_df$individual.local.identifier)]<-"Cluster 3 2012"
+medoid_df$clusters[grep("4181995", medoid_df$individual.local.identifier)]<-"Cluster 1 2013"
+medoid_df$clusters[grep("4181880", medoid_df$individual.local.identifier)]<-"Cluster 2 2013"
+medoid_df$clusters[grep("4181992", medoid_df$individual.local.identifier)]<-"Cluster 3 2013"
+medoid_df$clusters[grep("4165869", medoid_df$individual.local.identifier)]<-"Cluster 1 2014"
+medoid_df$clusters[grep("4165875", medoid_df$individual.local.identifier)]<-"Cluster 2 2014"
+
+medoid_df$ismed<-TRUE
+
+#other birds
+otherbirds=petrel %>% dplyr::filter(petrel$sensor.type=="gps")
+indices<-c()
+for (i in 1:length(unique(medoid_df$individual.local.identifier))){
+  indices=c(indices, grep(unique(medoid_df$individual.local.identifier)[i], otherbirds$individual.local.identifier))
+}
+otherbirds=otherbirds[-c(indices),]
+otherbirds$cluster<-NA
+otherbirds$winter<-NA
+
+non_medoids_2012<-setdiff(names(clusters_2012$pamobject$clustering), c("4182127", "4182001", "4182006"))
+non_medoids_2012<-clusters_2012$pamobject$clustering[match(non_medoids_2012, names(clusters_2012$pamobject$clustering))]
+for (i in 1:length(non_medoids_2012)){
+  name=names(non_medoids_2012)[i]
+  index_1=grep(name, otherbirds$individual.local.identifier)
+  otherbirds$cluster[index_1]<-paste("Cluster", non_medoids_2012[i], "2012")
+  otherbirds$winter[index_1]<-"2012"
+}
+
+non_medoids_2013<-setdiff(names(clusters_2013$pamobject$clustering), c("4181995", "4181880", "4181992"))
+non_medoids_2013<-clusters_2013$pamobject$clustering[match(non_medoids_2013, names(clusters_2013$pamobject$clustering))]
+for (i in 1:length(names(clusters_2013$pamobject$clustering))){
+  name=names(non_medoids_2013)[i]
+  index_2=grep(name, otherbirds$individual.local.identifier)
+  otherbirds$cluster[index_2]<-paste("Cluster", non_medoids_2013[i], "2013")
+  otherbirds$winter[index_2]<-"2013"
+}
+
+non_medoids_2014<-setdiff(names(clusters_2014$pamobject$clustering), c("4165869", "4165875"))
+non_medoids_2014<-clusters_2014$pamobject$clustering[match(non_medoids_2014, names(clusters_2014$pamobject$clustering))]
+for (i in 1:length(names(clusters_2014$pamobject$clustering))){
+  name=names(non_medoids_2014)[i]
+  index_3=grep(name, otherbirds$individual.local.identifier)
+  otherbirds$cluster[index_3]<-paste("Cluster", non_medoids_2014[i], "2014")
+  otherbirds$winter[index_3]<-"2014"
+}
+
+otherbirds$ismed=FALSE
+
+tmp_a=otherbirds[,c(1:6, 8:18)]
+tmp_b=medoid_df[,c(1:14, 38, 35, 39)]
+tmp_b$winter<-as.character(tmp_b$winter)
+tmp_a$winter<-as.character(tmp_a$winter)
+colnames(tmp_a)=colnames(tmp_b)
+
+data=rbind(tmp_a, tmp_b)
+data$clusters<-factor(data$clusters)
+
+p+geom_path(aes(x=location.long, y=location.lat, color=data$clusters, alpha=ismed, size=ismed), data=data)+scale_alpha_discrete(range=c(0.1, 1))+scale_size_discrete(range=c(0.7, 1))+facet_wrap(~winter)
+
+###
+#NPP
+###
+p+geom_path(aes(x=location.long, y=location.lat, color=OSU.Ocean.NPP.0.083deg.Monthly.NPP), size=2, data=medoid_df)+scale_color_gradientn(colors=c("blue", "cyan", "white", "magenta", "red"), values=rescale(c(0, 150, 300, 500, 2000)), space="Lab", na.value="grey50", guide="colorbar")+labs(color = "NPP (mgC m^-2 day^-1)")+facet_wrap(~winter)
+
+###
+#Sea Surface Temps
+###
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), size=2, data=medoid_df)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Surface Temp (*C)")+facet_wrap(~winter)
+
+###
+#Bathymetry
+###
+p+geom_path(aes(x=location.long, y=location.lat, color=ETOPO1.Elevation), size=2, data=medoid_df)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Bathymetric depth (m)")+facet_wrap(~winter)
+
+###
+#Sea Ice Cover
+###
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), , size=1.5, data=medoid_df)+scale_color_gradientn(colors=c("red", "cyan"), values=rescale(c(0, 0.15, 1)), space="Lab", na.value="grey50", guide="colorbar")+labs(color = "Sea Ice Cover (%)")+facet_wrap(~winter)
+
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover<0.15), data=medoid_df)+scale_colour_manual(values = c("cyan", "magenta"))+labs(color = "SIC<15% (Past Sea Ice Edge)")+facet_wrap(~winter)
+
+
+####
+#Looking for relationships
+####
+
+#Sea Ice and NPP
+ggplot(medoid_df)+geom_smooth(aes(x=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover, OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=medoid_df, color="cyan")+geom_vline(xintercept=0.15, color="red")+ggtitle("Sea Ice Cover and NPP")+xlab("Proportion Sea Ice Cover")+ylab("NPP (mgC m^-2 day^-1)")
+ggplot(medoid_df)+geom_point(aes(x=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover,  y=OSU.Ocean.NPP.0.083deg.Monthly.NPP))
+
+#Bathymetry and NPP
+ggplot(medoid_df)+geom_smooth(aes(x=ETOPO1.Elevation, OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=medoid_df, color="cyan")
+
+#Sea Temp and NPP
+ggplot(medoid_df)+geom_smooth(aes(ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15, OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=medoid_df, color="cyan")
+```
+
+```{r All Flights}
+all_flights<-read.csv("All_Petrel_Flights_Annotated.csv", header=TRUE)
+
+starts<-all_flights[match(unique(all_flights$tag.local.identifier), all_flights$tag.local.identifier),]
+
+dates<-format(as.Date(starts$timestamp), "%Y-%m")
+starts$dates<-dates
+years<-format(as.Date(starts$timestamp), "%Y")
+starts$years<-years
+starts$winter<-as.numeric(years)
+starts$winter<-ifelse(grepl("-12", starts$dates), starts$winter+1, starts$winter)
+starts$winter<-ifelse(grepl("-11", starts$dates), starts$winter+1, starts$winter)
+starts$winter<-factor(starts$winter)
+starts$month<-format(as.Date(starts$timestamp), "%m")
+
+date_df<-left_join(all_flights, starts, by="tag.local.identifier")
+date_df<-date_df[,c(1:18, 38:39)]
+colnames(date_df)<-c(colnames(all_flights), "winter", "month")
+
+###
+#NPP Plot
+###
+
+p+geom_path(aes(x=location.long, y=location.lat, color=OSU.Ocean.NPP.0.083deg.8d.NPP), alpha=0.5, data=date_df)+scale_color_gradientn(colors=c("blue", "cyan", "white", "magenta", "red"), values=rescale(c(0, 150, 300, 500, 2000)), space="Lab", na.value="grey50", guide="colorbar")+labs(color = "NPP (mgC m^-2 day^-1)")+facet_wrap(~winter)
+
+
+###
+#Bathymetry
+###
+p+geom_path(aes(x=location.long, y=location.lat, color=ETOPO1.Elevation), alpha=0.5, data=date_df)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Bathymetric depth (m)")+facet_wrap(~winter)
+
+###
+#Sea Ice Cover
+###
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), alpha=0.5, data=date_df)+scale_color_gradientn(colors=c("red", "yellow", "cyan"), values=rescale(c(0, 0.15, 0.5, 1)), space="Lab", na.value="grey50", guide="colorbar")+labs(color = "Sea Ice Cover (%)")+facet_wrap(~winter)
+
+date_df$month<-factor(date_df$month, levels=c("11", "12", "01", "02"))
+
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), alpha=0.5, data=date_df)+scale_color_gradientn(colors=c("red", "yellow", "cyan"), values=rescale(c(0, 0.15, 0.5, 1)), space="Lab", na.value="grey50", guide="colorbar")+labs(color = "Sea Ice Cover (%)")+facet_wrap(~winter+month)
+
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover<0.15), alpha=0.5, data=date_df)+scale_colour_manual(values = c("cyan", "magenta"))+labs(color = "SIC<15% (Past Sea Ice Edge)")+facet_wrap(~winter)
+
+#Sea Ice and NPP
+ggplot(date_df)+geom_smooth(aes(x=ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover, OSU.Ocean.NPP.0.083deg.8d.NPP), data=date_df, color="cyan")+geom_vline(xintercept=0.15, color="red")+ggtitle("Sea Ice Cover and NPP")+xlab("Proportion Sea Ice Cover")+ylab("NPP (mgC m^-2 day^-1)")
+```
+
+```{r Icebergs}
+foo<-function(){}
+files<-list.files("./iceberg_stats")
+files<-files[grep(".csv", files)]
+iceberg_data<-data.frame()
+for (i in 1:length(files)){
+  file<-read.csv(paste("./iceberg_stats/", files[i], sep=""), header=TRUE)
+  if(file$date>2011000 & file$date<2015000){
+    #pass
+    file$name<-gsub(".csv", "", files[i])
+    iceberg_data<-rbind(iceberg_data, file)
+  }
+  else{
+    foo()
+  }
+}
+
+iceberg_2012<-iceberg_data %>% filter(date>2011333 & date<2012032) %>% mutate(edge_length_degrees=sqrt(size)/111)
+p+geom_rect(data=iceberg_2012, mapping=aes(xmin=lon-edge_length_degrees, xmax=lon+edge_length_degrees, ymin=lat-edge_length_degrees, ymax=lat+edge_length_degrees, fill=recorded), fill="magenta", alpha=0.5)+geom_path(aes(x=location.long, y=location.lat), color="red", alpha=0.2, data=date_df[date_df$winter==2012,])
+
+iceberg_2013<-iceberg_data %>% filter(date>2012333 & date<2013060) %>% mutate(edge_length_degrees=sqrt(size)/111)
+p+geom_rect(data=iceberg_2013, mapping=aes(xmin=lon-edge_length_degrees, xmax=lon+edge_length_degrees, ymin=lat-edge_length_degrees, ymax=lat+edge_length_degrees), fill="magenta", alpha=0.5)+geom_path(aes(x=location.long, y=location.lat), color="red", alpha=0.2, data=date_df[date_df$winter==2013,])
+
+
+iceberg_2014<-iceberg_data %>% filter(date>2013333 & date<2014060) %>% mutate(edge_length_degrees=sqrt(size)/111)
+p+geom_rect(data=iceberg_2014, mapping=aes(xmin=lon-edge_length_degrees, xmax=lon+edge_length_degrees, ymin=lat-edge_length_degrees, ymax=lat+edge_length_degrees, fill=), fill="magenta", alpha=0.5)+geom_path(aes(x=location.long, y=location.lat), color="red", alpha=0.2, data=date_df[date_df$winter==2014,])
+```
+
+
+```{r 3D}
+flights_3d<-read.csv("Antarctic petrel 3D flights, Svarthamaren, Antarctica (data from Tarroux et al. 2016).csv-9160034165584638874.csv", header=TRUE)
+library(plotly)
+single_bird<-flights_3d %>% filter(tag.local.identifier=="4182444")
+single_bird$habitat<-as.factor(single_bird$habitat)
+
+flights_3d$individual.local.identifier<-as.factor(flights_3d$individual.local.identifier)
+
+
+fig <- flights_3d %>% plot_ly(x = ~location.long, y = ~location.lat, z = ~log(height.above.msl), type = 'scatter3d', mode = 'lines') %>% add_markers(x = ~location.long, y = ~location.lat, shape=~habitat, color=~ECMWF.Interim.Full.Daily.SFC.FC.Sea.Ice.Cover)
+fig
+
+
+```
+
+
+
+
+
+```{r Cluster}
+#Clustering
+library(cluster)
+library(fpc)
+library(factoextra)
+
+clust_petrel<- petrel %>% filter(sensor.type=="gps") %>% dplyr::select(location.long, location.lat, individual.local.identifier) %>% group_by(individual.local.identifier) %>% summarize(medlon=median(location.long), medlat=median(location.lat))
+
+clust_petrel<-as.data.frame(clust_petrel)
+
+rownames(clust_petrel)<-clust_petrel$individual.local.identifier
+clust_petrel<-clust_petrel[,2:3]
+
+clusters=fpc::pamk(clust_petrel, krange=2:12, criterion="asw", usepam=TRUE)
+
+clust_petrel$clusters<-clusters$pamobject$clustering
+
+ggplot()+geom_point(aes(x=medlon, y=medlat, color=as.factor(clusters)), data=clust_petrel)+theme_bw()+labs(color = "Cluster")+scale_color_manual(labels = c("Cluster 1", "Cluster 2", "Cluster 3"), values = c("red", "blue", "forestgreen"))
+
+###Plot Medoid birds and all other birds
+
+clusters$pamobject$clustering[clusters$pamobject$id.med]
+
+#medoid birds
+medoids=petrel %>% filter(petrel$sensor.type=="gps")
+medoids=medoids[medoids$individual.local.identifier %in% rownames(clusters$pamobject$medoids),]
+
+medoids$cluster=factor(medoids$individual.local.identifier, levels=names(clusters$pamobject$clustering[clusters$pamobject$id.med]))
+cluster<-plyr::mapvalues(medoids$cluster, from = c("4181987", "4165869", "4181999"), to = c("1", "2", "3"))
+medoids$cluster<-cluster
+medoids$ismed<-TRUE
+
+#other birds
+otherbirds=petrel %>% filter(petrel$sensor.type=="gps")
+otherbirds=otherbirds[otherbirds$individual.local.identifier!=as.numeric(medoids$individual.local.identifier),]
+otherbirds$cluster=clusters$pamobject$clustering[match(otherbirds$individual.local.identifier, names(clusters$pamobject$clustering))]
+otherbirds$cluster<-factor(otherbirds$cluster, levels=c("1","2","3"))
+otherbirds$ismed<-FALSE
+
+data=rbind(medoids, otherbirds)
+
+p+geom_path(aes(x=location.long, y=location.lat, color=cluster, alpha=ismed, size=ismed), data=data)+scale_color_manual(labels = c("Cluster 1", "Cluster 2", "Cluster 3"), values = c("magenta", "cyan", "green"))+scale_alpha_discrete(range=c(0.1, 1))+scale_size_discrete(range=c(0.8, 1.2))
+```
+
+```{r Petrel 1987}
+library(gridExtra)
+library(grid)
+
+petrel_1987<-read.csv("./Petrel 1987/At-sea distribution Antarctic Petrel, Antarctica 2012 (data from Descamps et al. 2016)-7356627259512384476.csv", header=TRUE)
+
+p_zoom<-ggmap(get_googlemap(center = c(lon = mean(petrel_1987$location.long, na.rm=TRUE), lat = mean(petrel_1987$location.lat, na.rm=TRUE)),
+                    zoom = 4, scale = 1,
+                    maptype ='satellite',
+                    color = "color"))
+
+#1987 NPP
+p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=petrel_1987, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "NPP")
+
+#1987 Ice Cover
+p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), data=petrel_1987, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Ice Cover")
+
+#1987 Bathymetry
+p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$ETOPO1.Elevation), data=petrel_1987, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Bathymetry (m)")
+
+#1987 Sea Surface Temp
+p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), data=petrel_1987, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Surface Temp (C)")
+```
+
+```{r Petrel 1999}
+petrel_1999<-read.csv("./Petrel 1999/Petrel 4181999-6741423969666548231.csv", header=TRUE)
+
+#1999 NPP
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_1999$OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=petrel_1999, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "NPP")
+
+#1987 Ice Cover
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_1999$ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), data=petrel_1999, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Ice Cover")
+
+#1999 Bathymetry
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_1999$ETOPO1.Elevation), data=petrel_1999, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Bathymetry (m)")
+
+#1999 Sea Surface Temp
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), data=petrel_1999, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Surface Temp (C)")
+```
+
+```{r Petrel 5869}
+petrel_5869<-read.csv("./Petrel 4165869/Petrel 4165869-6644783168583569612.csv", header=TRUE)
+
+#5869 NPP
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_5869$OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "NPP")
+
+#1987 Ice Cover
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_5869$ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Ice Cover")
+
+#5869 Bathymetry
+p+geom_path(aes(x=location.long, y=location.lat, color=petrel_5869$ETOPO1.Elevation), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Bathymetry (m)")
+
+#5869 Sea Surface Temp
+p+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Surface Temp (C)")
+
+```
+
+```{r All together now}
+
+p_zoom<-ggmap(get_googlemap(center = c(lon = mean(medoids$location.long, na.rm=TRUE), lat = mean(medoids$location.lat, na.rm=TRUE)),
+                    zoom = 4, scale = 1,
+                    maptype ='satellite',
+                    color = "color"))
+
+#NPP 3 medoids
+one<-p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=petrel_1987, size=1)+geom_path(aes(x=location.long, y=location.lat, color=petrel_1999$OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=petrel_1999, size=1)+geom_path(aes(x=location.long, y=location.lat, color=petrel_5869$OSU.Ocean.NPP.0.083deg.Monthly.NPP), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "NPP (mgC m^-2 day^-1)")
+
+#Ice Cover 3 medoids
+two<-p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), data=petrel_1987, size=1)+geom_path(aes(x=location.long, y=location.lat, color=petrel_1999$ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), data=petrel_1999, size=1)+geom_path(aes(x=location.long, y=location.lat, color=petrel_5869$ECMWF.Interim.Full.Daily.SFC.Sea.Ice.Cover), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Ice Cover (%)    ")
+
+#Bathymetry 3 medoids
+three<-p_zoom+geom_path(aes(x=location.long, y=location.lat, color=petrel_1987$ETOPO1.Elevation), data=petrel_1987, size=1)+geom_path(aes(x=location.long, y=location.lat, color=petrel_1999$ETOPO1.Elevation), data=petrel_1999, size=1)+geom_path(aes(x=location.long, y=location.lat, color=petrel_5869$ETOPO1.Elevation), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Bathymetry (m)       ")
+
+#Sea Surface Temp
+four<-p_zoom+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), data=petrel_1987, size=1)+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), data=petrel_1999, size=1)+geom_path(aes(x=location.long, y=location.lat, color=ECMWF.Interim.Full.Daily.SFC.Sea.Surface.Temperature-273.15), data=petrel_5869, size=1)+scale_colour_gradient(low = "yellow", high = "red", space = "Lab", na.value = "grey50", guide = "colourbar", aesthetics = "colour")+labs(color = "Sea Surface Temp (C) ")
+
+ 
+grid.arrange(one, two, three, four, ncol=2)
+
+```
+
+```{bash}
+brew install nco
+```
+
+
+```{r, eval=F}
+#Movevis
+library(moveVis)
+library(move)
+
+use_multicore()
+
+data("move_data", package = "moveVis") # move class object
+# if your tracks are present as data.frames, see df2move() for conversion
+
+move_data=move::move("At-sea distribution Antarctic Petrel, Antarctica 2012 (data from Descamps et al. 2016).csv", sensor=c("4181987GPS", "4165869GPS", "4181999GPS"), animal=c(4181987, 4165869, 4181999))
+
+# align move_data to a uniform time scale
+m <- align_move(move_data, res = 60, digit = 0, unit = "mins")
+
+# create spatial frames with a OpenStreetMap watercolour map
+frames <- frames_spatial(m, map_service = "osm", map_type = "watercolor", alpha = 0.5) %>%
+  add_labels(x = "Longitude", y = "Latitude") %>% # add some customizations, such as axis labels
+  add_northarrow() %>%
+  add_scalebar() %>%
+  add_timestamps(m, type = "label") %>%
+  add_progress()
+
+frames[[100]] # preview one of the frames, e.g. the 100th frame
+
+# animate frames
+animate_frames(frames, out_file = "moveVis.gif")
+```
+
+```{r}
+library(raster)
+library(tidyverse)
+library(scales)
+
+NPP_Dec<-read.delim("./Monthly_NPP/vgpm.2013335.all.xyz", header=TRUE, sep=" ")
+NPP_Dec$value<-gsub(-999, NA, NPP_Dec$value)
+NPP_Dec<-NPP_Dec %>% dplyr::select(lon, lat, value)
+colnames(NPP_Dec)<-c("x", "y", "z")
+NPP_Dec_1<-NPP_Dec %>% filter(y<-40 & y>-80) %>% filter(x>-50 & x<50)
+NPP_Dec_raster<-raster::rasterFromXYZ(NPP_Dec_1, digits=3)
+NPP_Dec_setup<-raster::as.data.frame(NPP_Dec_raster, xy=TRUE)
+rng_dec<-range(as.numeric(NPP_Dec_1$z), na.rm=TRUE)
+
+NPP_Jan<-read.delim("./Monthly_NPP/vgpm.2013001.all.xyz", header=TRUE, sep=" ")
+NPP_Jan$value<-gsub(-999, NA, NPP_Jan$value)
+NPP_Jan<-NPP_Jan %>% dplyr::select(lon, lat, value)
+colnames(NPP_Jan)<-c("x", "y", "z")
+NPP_Jan_1<-NPP_Jan %>% filter(y<-40 & y>-80) %>% filter(x>-50 & x<50)
+NPP_Jan_raster<-raster::rasterFromXYZ(NPP_Jan_1, digits=3)
+NPP_Jan_setup<-raster::as.data.frame(NPP_Jan_raster, xy=TRUE)
+rng_jan<-range(as.numeric(NPP_Jan_1$z), na.rm=TRUE)
+
+NPP_Feb<-read.delim("./Monthly_NPP/vgpm.2013032.all.xyz", header=TRUE, sep=" ")
+NPP_Feb$value<-gsub(-999, NA, NPP_Feb$value)
+NPP_Feb<-NPP_Feb %>% dplyr::select(lon, lat, value)
+colnames(NPP_Feb)<-c("x", "y", "z")
+NPP_Feb_1<-NPP_Feb %>% filter(y<-40 & y>-80) %>% filter(x>-50 & x<50)
+NPP_Feb_raster<-raster::rasterFromXYZ(NPP_Feb_1, digits=3)
+NPP_Feb_setup<-raster::as.data.frame(NPP_Feb_raster, xy=TRUE)
+rng_feb<-range(as.numeric(NPP_Feb_1$z), na.rm=TRUE)
+
+
+q_jan<-ggplot()+geom_raster(data=NPP_Jan_setup, aes(x=x, y=y, fill=z))+coord_quickmap()+xlim(-50, 50)+ylim(-80, -40) + scale_fill_gradient2(low="black", mid="yellow", high="green", midpoint=quantile(rng, 0.25), breaks=seq(0,3500,500), limits=c(0, 3500), guide="colorbar")
+q_jan+geom_path(aes(x=location.long, y=location.lat, color=cluster, alpha=ismed, size=ismed), data=data[data$cluster==3,])+scale_color_manual(labels = c("Cluster 3"), values = c("green"))+scale_alpha_discrete(range=c(0.1, 1))+scale_size_discrete(range=c(0.8, 1.2))+theme(axis.line=element_blank(),axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),plot.background=element_blank())
+
+q_feb<-ggplot()+geom_raster(data=NPP_Feb_setup, aes(x=x, y=y, fill=z))+coord_quickmap()+xlim(-50, 50)+ylim(-80, -40) + scale_fill_gradient2(low="black", mid="yellow", high="green", midpoint=quantile(rng, 0.25), breaks=seq(0,3500,500), limits=c(0, 3500), guide="colorbar")
+q_feb+geom_path(aes(x=location.long, y=location.lat, color=cluster, alpha=ismed, size=ismed), data=data[data$cluster==1,])+scale_color_manual(labels = c("Cluster 1"), values = c("magenta"))+scale_alpha_discrete(range=c(0.1, 1))+scale_size_discrete(range=c(0.8, 1.2))+theme(axis.line=element_blank(),axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),plot.background=element_blank())
+
+q_dec<-ggplot()+geom_raster(data=NPP_Feb_setup, aes(x=x, y=y, fill=z))+coord_quickmap()+xlim(-50, 50)+ylim(-80, -40) + scale_fill_gradient2(low="black", mid="yellow", high="green", midpoint=quantile(rng, 0.25), breaks=seq(0,3500,500), limits=c(0, 3500), guide="colorbar")
+q_dec+geom_path(aes(x=location.long, y=location.lat, color=cluster, alpha=ismed, size=ismed), data=data[data$cluster==2,])+scale_color_manual(labels = c("Cluster 2"), values = c("cyan"))+scale_alpha_discrete(range=c(0.1, 1))+scale_size_discrete(range=c(0.8, 1.2))+theme(axis.line=element_blank(),axis.text.x=element_blank(),
+          axis.text.y=element_blank(),axis.ticks=element_blank(),
+          axis.title.x=element_blank(),
+          axis.title.y=element_blank(),
+          panel.background=element_blank(),panel.border=element_blank(),panel.grid.major=element_blank(),
+          panel.grid.minor=element_blank(),plot.background=element_blank())
+```
