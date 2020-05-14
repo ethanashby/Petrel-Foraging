@@ -1,0 +1,70 @@
+
+The default interactive shell is now zsh.
+To update your account to use zsh, please run `chsh -s /bin/zsh`.
+For more details, please visit https://support.apple.com/kb/HT208050.
+]0;~/Desktop/Avian Ecology/Petrel[?1034hEthans-MacBook-Pro-2:Petrel ethanashby$ [KEthans-MacBook-Pro-2:Petrel ethanashby$ git remote add origin https://github.com/ethanashby/Petrel-Foraging.git
+fatal: not a git repository (or any of the parent directories): .git
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git remote add origin https://github.com/ethanashby/Petrel-Foraging.git
+fatal: not a git repository (or any of the parent directories): .git
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git
+usage: git [--version] [--help] [-C <path>] [-c <name>=<value>]
+           [--exec-path[=<path>]] [--html-path] [--man-path] [--info-path]
+           [-p | --paginate | -P | --no-pager] [--no-replace-objects] [--bare]
+           [--git-dir=<path>] [--work-tree=<path>] [--namespace=<name>]
+           <command> [<args>]
+
+These are common Git commands used in various situations:
+
+start a working area (see also: git help tutorial)
+   clone      Clone a repository into a new directory
+   init       Create an empty Git repository or reinitialize an existing one
+
+work on the current change (see also: git help everyday)
+   add        Add file contents to the index
+   mv         Move or rename a file, a directory, or a symlink
+   reset      Reset current HEAD to the specified state
+   rm         Remove files from the working tree and from the index
+
+examine the history and state (see also: git help revisions)
+   bisect     Use binary search to find the commit that introduced a bug
+   grep       Print lines matching a pattern
+   log        Show commit logs
+   show       Show various types of objects
+   status     Show the working tree status
+
+grow, mark and tweak your common history
+   branch     List, create, or delete branches
+   checkout    Switch branches or restore working tree files
+   commit     Record changes to the repository
+   diff       Show changes between commits, commit and working tree, etc
+   merge      Join two or more development histories together
+   rebase     Reapply commits on top of another base tip
+   tag        Create, list, delete or verify a tag object signed with GPG
+
+collaborate (see also: git help workflows)
+   fetch      Download objects and refs from another repository
+   pull       Fetch from and integrate with another repository or a local branch
+   push       Update remote refs along with associated objects
+
+'git help -a' and 'git help -g' list available subcommands and some
+concept guides. See 'git help <command>' or 'git help <concept>'
+to read about a specific subcommand or concept.
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git remote add origin https://github.com/ethanashby/Petrel-Foraging.git
+fatal: not a git repository (or any of the parent directories): .git
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git init
+Initialized empty Git repository in /Users/ethanashby/Desktop/Avian Ecology/Petrel/.git/
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ fatal: not a git repository (or any of the parent directories): .git
+bash: syntax error near unexpected token `('
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ fatal: not a git repository (or any of the parent directories): .git[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[C[Cgit init[Kremote add origin https://github.com/ethanashby/Petrel-Foraging.git
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git push -u origin master
+error: src refspec master does not match any.
+[31merror: failed to push some refs to 'https://github.com/ethanashby/Petrel-Foraging.git'
+[m]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git push -u origin master
+error: src refspec master does not match any.
+[31merror: failed to push some refs to 'https://github.com/ethanashby/Petrel-Foraging.git'
+[m]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git remote add origin https://github.com/ethanashby/Petrel-Foraging.git
+fatal: remote origin already exists.
+]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git push -u origin master
+error: src refspec master does not match any.
+[31merror: failed to push some refs to 'https://github.com/ethanashby/Petrel-Foraging.git'
+[m]0;~/Desktop/Avian Ecology/PetrelEthans-MacBook-Pro-2:Petrel ethanashby$ git add .
