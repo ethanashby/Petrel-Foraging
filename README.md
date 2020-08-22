@@ -26,7 +26,7 @@ To determine possible causes of this variability, I visualized the pretrel forag
 </p>
 
 <p align="center">
-  <img src="NPP_SeaIce_Medoids.png" width="900" height="400" alt="Prototype Petrel Trips Sea Ice">
+  <img src="NPP_SeaIce_Medoids.png" width="600" height="400" alt="Prototype Petrel Trips Sea Ice">
 </p>
 
 This finding was supported by the scientific literature (Delord, K. et al., R. Soc. Open Sci. 7, 2020). Exploratory plots indicated that lower sea ice cover corresponded to higher Net Primary Production, providing ecological justification for this phenomenon. This project represented a data-driven approach to understand the ecology of an important Antarctic sentinel species.
